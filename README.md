@@ -9,6 +9,7 @@ A simple REST API to manage books, members, and borrowing transactions in a libr
 - PostgreSQL
 - sqlx
 - Docker Compose
+- Air
 
 ## Actors
 - Admin / Librarian
