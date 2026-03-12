@@ -1,15 +1,27 @@
 package response
 
-type meta struct {
-	Message string `json:"message"`
+import "github.com/gin-gonic/gin"
+
+func Success(c *gin.Context, statusCode int, message string, data interface{}) {
+	payload := gin.H{
+		"message": message,
+	}
+
+	if data != nil {
+		payload["data"] = data
+	}
+
+	c.JSON(statusCode, payload)
 }
 
-type successResponse struct {
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
-}
+func Error(c *gin.Context, statusCode int, message string, errors interface{}) {
+	payload := gin.H{
+		"message": message,
+	}
 
-type errorResponse struct {
-	Message string      `json:"message"`
-	Errors  interface{} `json:"errors,omitempty"`
+	if errors != nil {
+		payload["errors"] = errors
+	}
+
+	c.JSON(statusCode, payload)
 }

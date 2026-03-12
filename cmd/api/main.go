@@ -3,14 +3,26 @@ package main
 import (
 	"log"
 
+	"go-library-rest-api/internal/config"
+	"go-library-rest-api/internal/database"
 	"go-library-rest-api/internal/router"
 )
 
 func main() {
-	r := router.Setup()
+	cfg := config.Load()
 
-	log.Println("server is running on :8080")
-	if err := r.Run(":8080"); err != nil {
+	db, err := database.NewPostgresConnection(cfg.DBUrl)
+	if err != nil {
+		log.Fatalf("failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
+	log.Println("database connected successfully")
+
+	r := router.Setup(db)
+
+	log.Printf("server is running on :%s", cfg.AppPort)
+	if err := r.Run(":" + cfg.AppPort); err != nil {
 		log.Fatal(err)
 	}
 }
