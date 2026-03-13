@@ -3,10 +3,11 @@ package member
 import (
 	"errors"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go-library-rest-api/internal/helper"
 	"go-library-rest-api/internal/response"
+	"go-library-rest-api/internal/validation"
 )
 
 type Handler struct {
@@ -28,7 +29,7 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) GetByID(c *gin.Context) {
-	id, err := parseIDParam(c.Param("id"))
+	id, err := helper.ParseIDParam(c.Param("id"))
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid member id", nil)
 		return
@@ -52,7 +53,7 @@ func (h *Handler) Create(c *gin.Context) {
 	var req CreateMemberRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "validation failed", err.Error())
+		response.Error(c, http.StatusBadRequest, "validation failed", validation.FormatError(err, req))
 		return
 	}
 
@@ -71,7 +72,7 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
-	id, err := parseIDParam(c.Param("id"))
+	id, err := helper.ParseIDParam(c.Param("id"))
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid member id", nil)
 		return
@@ -79,7 +80,7 @@ func (h *Handler) Update(c *gin.Context) {
 
 	var req UpdateMemberRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "validation failed", err.Error())
+		response.Error(c, http.StatusBadRequest, "validation failed", validation.FormatError(err, req))
 		return
 	}
 
@@ -102,7 +103,7 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
-	id, err := parseIDParam(c.Param("id"))
+	id, err := helper.ParseIDParam(c.Param("id"))
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid member id", nil)
 		return
@@ -120,8 +121,4 @@ func (h *Handler) Delete(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, "member deleted", nil)
-}
-
-func parseIDParam(value string) (int64, error) {
-	return strconv.ParseInt(value, 10, 64)
 }

@@ -1,21 +1,32 @@
 package router
 
 import (
+	"net/http"
+	
+	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
+
 	"go-library-rest-api/internal/book"
 	"go-library-rest-api/internal/response"
 	"go-library-rest-api/internal/member"
 	"go-library-rest-api/internal/borrowing"
-	"net/http"
-
-	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 )
 
 func Setup(db *sqlx.DB) *gin.Engine {
 	r := gin.New()
 
+	r.HandleMethodNotAllowed = true
+
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
+
+	r.NoRoute(func(c *gin.Context) {
+		response.Error(c, http.StatusNotFound, "route not found", nil)
+	})
+
+	r.NoMethod(func(c *gin.Context) {
+		response.Error(c, http.StatusMethodNotAllowed, "method not allowed", nil)
+	})
 
 	api := r.Group("/api")
 	v1 := api.Group("/v1")
