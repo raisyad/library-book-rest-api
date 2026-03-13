@@ -4,6 +4,7 @@ import (
 	"go-library-rest-api/internal/book"
 	"go-library-rest-api/internal/response"
 	"go-library-rest-api/internal/member"
+	"go-library-rest-api/internal/borrowing"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -41,6 +42,12 @@ func Setup(db *sqlx.DB) *gin.Engine {
 	memberHandler := member.NewHandler(memberService)
 
 	member.RegisterRoutes(v1, memberHandler)
+
+	borrowingRepo := borrowing.NewRepository(db)
+	borrowingService := borrowing.NewService(borrowingRepo)
+	borrowingHandler := borrowing.NewHandler(borrowingService)
+
+	borrowing.RegisterRoutes(v1, borrowingHandler)
 
 	return r
 }
