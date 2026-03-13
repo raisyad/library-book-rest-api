@@ -3,6 +3,7 @@ package router
 import (
 	"go-library-rest-api/internal/book"
 	"go-library-rest-api/internal/response"
+	"go-library-rest-api/internal/member"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -34,6 +35,12 @@ func Setup(db *sqlx.DB) *gin.Engine {
 	bookHandler := book.NewHandler(bookService)
 
 	book.RegisterRoutes(v1, bookHandler)
+
+	memberRepo := member.NewRepository(db)
+	memberService := member.NewService(memberRepo)
+	memberHandler := member.NewHandler(memberService)
+
+	member.RegisterRoutes(v1, memberHandler)
 
 	return r
 }
