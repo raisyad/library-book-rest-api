@@ -1,6 +1,8 @@
 package borrowing
 
 import (
+	"go-library-rest-api/internal/response"
+	"math"
 	"strings"
 	"time"
 )
@@ -13,8 +15,36 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) List() ([]Borrowing, error) {
-	return s.repo.FindAll()
+func (s *Service) List(page, limit int) ([]Borrowing, response.PaginationMeta, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+
+	offset := (page - 1) * limit
+
+	totalItems, err := s.repo.Count()
+	if err != nil {
+		return nil, response.PaginationMeta{}, err
+	}
+
+	borrowings, err := s.repo.FindAll(limit, offset)
+	if err != nil {
+		return nil, response.PaginationMeta{}, err
+	}
+
+	totalPages := int(math.Ceil(float64(totalItems) / float64(limit)))
+
+	meta := response.PaginationMeta{
+		CurrentPage: page,
+		PageSize:    limit,
+		TotalItems:  totalItems,
+		TotalPages:  totalPages,
+	}
+
+	return borrowings, meta, nil
 }
 
 func (s *Service) GetByID(id int64) (*Borrowing, error) {

@@ -35,17 +35,28 @@ const borrowingDetailQuery = `
 	JOIN books b ON b.id = br.book_id
 `
 
-func (r *Repository) FindAll() ([]Borrowing, error) {
+func (r *Repository) FindAll(limit, offset int) ([]Borrowing, error) {
 	query := borrowingDetailQuery + `
 		ORDER BY br.id DESC
+		LIMIT $1 OFFSET $2
 	`
 
 	var borrowings []Borrowing
-	if err := r.db.Select(&borrowings, query); err != nil {
+	if err := r.db.Select(&borrowings, query, limit, offset); err != nil {
 		return nil, err
 	}
 
 	return borrowings, nil
+}
+
+func (r *Repository) Count() (int64, error) {
+	var count int64
+	query := `SELECT COUNT(*) FROM borrowings`
+	if err := r.db.Get(&count, query); err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }
 
 func (r *Repository) FindByID(id int64) (*Borrowing, error) {
