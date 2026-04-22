@@ -9,102 +9,45 @@ A simple REST API to manage books, members, and borrowing transactions in a libr
 - PostgreSQL
 - sqlx
 - Docker Compose
-- Air
-
-## Actors
-- Admin / Librarian
-
-## Main Features
-### Books
-- Create book
-- Get all books
-- Get book detail
-- Update book
-- Delete book
-
-### Members
-- Create member
-- Get all members
-- Get member detail
-- Update member
-- Delete member
-
-### Borrowings
-- Create borrowing
-- Return borrowed book
-- Get all borrowings
-- Get borrowing detail
-
-## Entities
-### Books
-- id
-- title
-- author
-- isbn
-- published_year
-- stock
-- created_at
-- updated_at
-
-### Members
-- id
-- name
-- email
-- phone
-- created_at
-- updated_at
-
-### Borrowings
-- id
-- member_id
-- book_id
-- borrow_date
-- due_date
-- returned_at
-- status
-- created_at
-- updated_at
-
-## Business Rules
-- Book can only be borrowed if stock > 0
-- Borrowing reduces stock by 1
-- Returning increases stock by 1
-- Member must exist before borrowing
-- Book must exist before borrowing
-- Borrowing status can be: borrowed, returned
-- Returned borrowing cannot be returned again
+- Ai
 
 ## Endpoints
 ### Utility
 - GET /api/v1/health
 
 ### Books
-- GET /api/v1/books
-- GET /api/v1/books/:id
-- POST /api/v1/books
-- PUT /api/v1/books/:id
-- DELETE /api/v1/books/:id
+`GET`   : `/books`
+`GET`   : `/books/:id`
+`POST`  : `/books`
+`PUT`   : `/books/:id`
+`DELETE`: `/books/:id`
 
 ### Members
-- GET /api/v1/members
-- GET /api/v1/members/:id
-- POST /api/v1/members
-- PUT /api/v1/members/:id
-- DELETE /api/v1/members/:id
+`GET`    : `/members`
+`GET`    : `/members/:id`
+`POST`   : `/members`
+`PUT`    : `/members/:id`
+`DELETE` : `/members/:id`
 
-### Borrowings
-- GET /api/v1/borrowings
-- GET /api/v1/borrowings/:id
-- POST /api/v1/borrowings
-- POST /api/v1/borrowings/:id/return
+### Borrowing Transactions
+`GET`    : `/borrowings`
+`GET`    : `/borrowings/:id`
+`POST`   : `/borrowings`
+`POST`   : `/borrowings/:id/return`
 
-## Out of Scope
-- Authentication
-- Authorization
-- Pagination
-- Search and filtering
-- Categories
-- Fines and overdue penalties
-- Reservation system
-- Cover image upload
-- Automated testing
+---
+
+## 🛠️ Getting Started
+1. **Clone the repo**
+2. **Setup Environment**: Copy `.env.example` to `.env` and fill in your database details.
+3. **Run with Docker**:
+   ```bash
+   docker-compose up -d
+   ```
+4. **Run the API**:
+   ```bash
+   go run cmd/api/main.go
+   ```
+   *(Or use `air` for live reloading)*
+
+---
