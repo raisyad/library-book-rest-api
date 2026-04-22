@@ -3,6 +3,7 @@ package book
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"go-library-rest-api/internal/response"
@@ -19,13 +20,16 @@ func NewHandler(service *Service) *Handler {
 }
 
 func (h *Handler) List(c *gin.Context) {
-	books, err := h.service.List()
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	books, meta, err := h.service.List(page, limit)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to fetch books", nil)
 		return
 	}
 
-	response.Success(c, http.StatusOK, "books fetched", books)
+	response.PaginatedSuccess(c, http.StatusOK, "books fetched", books, meta)
 }
 
 func (h *Handler) GetByID(c *gin.Context) {

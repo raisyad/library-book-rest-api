@@ -16,7 +16,7 @@ func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) FindAll() ([]Book, error) {
+func (r *Repository) FindAll(limit, offset int) ([]Book, error) {
 	query := `
 		SELECT
 			id,
@@ -29,14 +29,25 @@ func (r *Repository) FindAll() ([]Book, error) {
 			updated_at
 		FROM books
 		ORDER BY id DESC
+		LIMIT $1 OFFSET $2
 	`
 
 	var books []Book
-	if err := r.db.Select(&books, query); err != nil {
+	if err := r.db.Select(&books, query, limit, offset); err != nil {
 		return nil, err
 	}
 
 	return books, nil
+}
+
+func (r *Repository) Count() (int64, error) {
+	var count int64
+	query := `SELECT COUNT(*) FROM books`
+	if err := r.db.Get(&count, query); err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }
 
 func (r *Repository) FindByID(id int64) (*Book, error) {
