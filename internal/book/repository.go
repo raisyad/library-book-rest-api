@@ -30,7 +30,8 @@ func (r *Repository) FindAll(limit, offset int, filter BookFilter) ([]Book, erro
 			published_year,
 			stock,
 			created_at,
-			updated_at
+			updated_at,
+			deleted_at
 		FROM books
 		` + filterQuery + `
 		ORDER BY id DESC
@@ -69,9 +70,11 @@ func (r *Repository) FindByID(id int64) (*Book, error) {
 			published_year,
 			stock,
 			created_at,
-			updated_at
+			updated_at,
+			deleted_at
 		FROM books
 		WHERE id = $1
+			AND deleted_at IS NULL
 	`
 
 	var book Book
@@ -103,7 +106,8 @@ func (r *Repository) Create(req CreateBookRequest) (*Book, error) {
 			published_year,
 			stock,
 			created_at,
-			updated_at
+			updated_at,
+			deleted_at
 	`
 
 	var book Book
@@ -138,6 +142,7 @@ func (r *Repository) Update(id int64, req UpdateBookRequest) (*Book, error) {
 			stock = $5,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = $6
+			AND deleted_at IS NULL
 		RETURNING
 			id,
 			title,
@@ -146,7 +151,8 @@ func (r *Repository) Update(id int64, req UpdateBookRequest) (*Book, error) {
 			published_year,
 			stock,
 			created_at,
-			updated_at
+			updated_at,
+			deleted_at
 	`
 
 	var book Book
@@ -177,7 +183,14 @@ func (r *Repository) Update(id int64, req UpdateBookRequest) (*Book, error) {
 }
 
 func (r *Repository) Delete(id int64) error {
-	query := `DELETE FROM books WHERE id = $1`
+	query := `
+		UPDATE books
+		SET
+			deleted_at = CURRENT_TIMESTAMP,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1
+			AND deleted_at IS NULL
+	`
 
 	result, err := r.db.Exec(query, id)
 	if err != nil {
@@ -198,7 +211,7 @@ func (r *Repository) Delete(id int64) error {
 
 // Helper
 func buildBookFilterQuery(filter BookFilter) (string, []any) {
-	conditions := []string{}
+	conditions := []string{"deleted_at IS NULL"}
 	args := []any{}
 
 	addCondition := func(condition string, values ...any) {
@@ -244,10 +257,6 @@ func buildBookFilterQuery(filter BookFilter) (string, []any) {
 		} else {
 			conditions = append(conditions, "stock = 0")
 		}
-	}
-
-	if len(conditions) == 0 {
-		return "", args
 	}
 
 	return " WHERE " + strings.Join(conditions, " AND "), args

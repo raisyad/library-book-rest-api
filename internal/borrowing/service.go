@@ -74,3 +74,7 @@ func (s *Service) Create(req CreateBorrowingRequest) (*Borrowing, error) {
 func (s *Service) Return(id int64) (*Borrowing, error) {
 	return s.repo.Return(id)
 }
+
+func (s *Service) Delete(id int64) error {
+	return s.repo.Delete(id)
+}

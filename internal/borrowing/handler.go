@@ -145,3 +145,23 @@ func (h *Handler) Return(c *gin.Context) {
 
 	response.Success(c, http.StatusOK, "book returned", borrowing)
 }
+
+func (h *Handler) Delete(c *gin.Context) {
+	id, err := helper.ParseIDParam(c.Param("id"))
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid borrowing id", nil)
+		return
+	}
+
+	if err := h.service.Delete(id); err != nil {
+		if errors.Is(err, ErrBorrowingNotFound) {
+			response.Error(c, http.StatusNotFound, "borrowing not found", nil)
+			return
+		}
+
+		response.Error(c, http.StatusInternalServerError, "failed to delete borrowing", nil)
+		return
+	}
+
+	response.Success(c, http.StatusOK, "borrowing deleted", nil)
+}

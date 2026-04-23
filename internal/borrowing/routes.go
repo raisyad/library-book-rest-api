@@ -9,5 +9,6 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *Handler) {
 		borrowings.GET("/:id", handler.GetByID)
 		borrowings.POST("", handler.Create)
 		borrowings.POST("/:id/return", handler.Return)
+		borrowings.DELETE("/:id", handler.Delete)
 	}
 }

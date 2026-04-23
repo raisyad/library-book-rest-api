@@ -14,6 +14,7 @@ type Borrowing struct {
 	DaysOverdue int        `db:"days_overdue" json:"days_overdue"`
 	CreatedAt   time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt   time.Time  `db:"updated_at" json:"updated_at"`
+	DeletedAt   *time.Time `db:"deleted_at" json:"deleted_at,omitempty"`
 
 	MemberName  string `db:"member_name" json:"member_name"`
 	MemberEmail string `db:"member_email" json:"member_email"`

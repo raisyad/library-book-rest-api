@@ -40,13 +40,14 @@ const borrowingDetailQuery = `
 		END AS days_overdue,
 		br.created_at,
 		br.updated_at,
+		br.deleted_at,
 		m.name AS member_name,
 		m.email AS member_email,
 		b.title AS book_title,
 		b.author AS book_author
 	FROM borrowings br
-	JOIN members m ON m.id = br.member_id
-	JOIN books b ON b.id = br.book_id
+	JOIN members m ON m.id = br.member_id AND m.deleted_at IS NULL
+	JOIN books b ON b.id = br.book_id AND b.deleted_at IS NULL
 `
 
 func (r *Repository) FindAll(limit, offset int, filter BorrowingFilter) ([]Borrowing, error) {
@@ -71,7 +72,12 @@ func (r *Repository) Count(filter BorrowingFilter) (int64, error) {
 	filterQuery, args := buildBorrowingFilterQuery(filter)
 
 	var count int64
-	query := `SELECT COUNT(*) FROM borrowings br` + filterQuery
+	query := `
+		SELECT COUNT(*)
+		FROM borrowings br
+		JOIN members m ON m.id = br.member_id AND m.deleted_at IS NULL
+		JOIN books b ON b.id = br.book_id AND b.deleted_at IS NULL
+	` + filterQuery
 	if err := r.db.Get(&count, query, args...); err != nil {
 		return 0, err
 	}
@@ -82,6 +88,7 @@ func (r *Repository) Count(filter BorrowingFilter) (int64, error) {
 func (r *Repository) FindByID(id int64) (*Borrowing, error) {
 	query := borrowingDetailQuery + `
 		WHERE br.id = $1
+			AND br.deleted_at IS NULL
 	`
 
 	var borrowing Borrowing
@@ -137,6 +144,7 @@ func (r *Repository) Create(params CreateBorrowingParams) (*Borrowing, error) {
 			stock = stock - 1,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
+			AND deleted_at IS NULL
 	`
 
 	if _, err := tx.Exec(updateStockQuery, params.BookID); err != nil {
@@ -177,6 +185,7 @@ func (r *Repository) Return(id int64) (*Borrowing, error) {
 			status
 		FROM borrowings
 		WHERE id = $1
+			AND deleted_at IS NULL
 		FOR UPDATE
 	`
 
@@ -231,7 +240,14 @@ func (r *Repository) Return(id int64) (*Borrowing, error) {
 func (r *Repository) ensureMemberExists(tx *sqlx.Tx, memberID int64) error {
 	var exists bool
 
-	query := `SELECT EXISTS (SELECT 1 FROM members WHERE id = $1)`
+	query := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM members
+			WHERE id = $1
+				AND deleted_at IS NULL
+		)
+	`
 
 	if err := tx.Get(&exists, query, memberID); err != nil {
 		return err
@@ -256,6 +272,7 @@ func (r *Repository) lockBookAndCheckStock(tx *sqlx.Tx, bookID int64) error {
 			stock
 		FROM books
 		WHERE id = $1
+			AND deleted_at IS NULL
 		FOR UPDATE
 	`
 
@@ -276,6 +293,7 @@ func (r *Repository) lockBookAndCheckStock(tx *sqlx.Tx, bookID int64) error {
 func (r *Repository) findByIDTx(tx *sqlx.Tx, id int64) (*Borrowing, error) {
 	query := borrowingDetailQuery + `
 		WHERE br.id = $1
+			AND br.deleted_at IS NULL
 	`
 
 	var borrowing Borrowing
@@ -289,8 +307,36 @@ func (r *Repository) findByIDTx(tx *sqlx.Tx, id int64) (*Borrowing, error) {
 	return &borrowing, nil
 }
 
+func (r *Repository) Delete(id int64) error {
+	query := `
+		UPDATE borrowings
+		SET
+			deleted_at = CURRENT_TIMESTAMP,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1
+			AND deleted_at IS NULL
+			AND status = 'returned'
+	`
+
+	result, err := r.db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrBorrowingNotFound
+	}
+
+	return nil
+}
+
 func buildBorrowingFilterQuery(filter BorrowingFilter) (string, []any) {
-	conditions := []string{}
+	conditions := []string{"br.deleted_at IS NULL"}
 	args := []any{}
 
 	addCondition := func(condition string, value any) {
@@ -322,10 +368,6 @@ func buildBorrowingFilterQuery(filter BorrowingFilter) (string, []any) {
 
 	if filter.BookID != nil {
 		addCondition("br.book_id = %s", *filter.BookID)
-	}
-
-	if len(conditions) == 0 {
-		return "", args
 	}
 
 	return " WHERE " + strings.Join(conditions, " AND "), args

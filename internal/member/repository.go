@@ -24,8 +24,10 @@ func (r *Repository) FindAll() ([]Member, error) {
 			email,
 			phone,
 			created_at,
-			updated_at
+			updated_at,
+			deleted_at
 		FROM members
+		WHERE deleted_at IS NULL
 		ORDER BY id DESC
 	`
 
@@ -45,9 +47,11 @@ func (r *Repository) FindByID(id int64) (*Member, error) {
 			email,
 			phone,
 			created_at,
-			updated_at
+			updated_at,
+			deleted_at
 		FROM members
 		WHERE id = $1
+			AND deleted_at IS NULL
 	`
 
 	var member Member
@@ -75,7 +79,8 @@ func (r *Repository) Create(req CreateMemberRequest) (*Member, error) {
 			email,
 			phone,
 			created_at,
-			updated_at
+			updated_at,
+			deleted_at
 	`
 
 	var member Member
@@ -106,13 +111,15 @@ func (r *Repository) Update(id int64, req UpdateMemberRequest) (*Member, error) 
 			phone = $3,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = $4
+			AND deleted_at IS NULL
 		RETURNING
 			id,
 			name,
 			email,
 			phone,
 			created_at,
-			updated_at
+			updated_at,
+			deleted_at
 	`
 
 	var member Member
@@ -141,7 +148,14 @@ func (r *Repository) Update(id int64, req UpdateMemberRequest) (*Member, error) 
 }
 
 func (r *Repository) Delete(id int64) error {
-	query := `DELETE FROM members WHERE id = $1`
+	query := `
+		UPDATE members
+		SET
+			deleted_at = CURRENT_TIMESTAMP,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1
+			AND deleted_at IS NULL
+	`
 
 	result, err := r.db.Exec(query, id)
 	if err != nil {
