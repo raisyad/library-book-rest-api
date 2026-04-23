@@ -13,7 +13,7 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) List(page, limit int) ([]Book, response.PaginationMeta, error) {
+func (s *Service) List(page, limit int, filter BookFilter) ([]Book, response.PaginationMeta, error) {
 	if page <= 0 {
 		page = 1
 	}
@@ -23,12 +23,12 @@ func (s *Service) List(page, limit int) ([]Book, response.PaginationMeta, error)
 
 	offset := (page - 1) * limit
 
-	totalItems, err := s.repo.Count()
+	totalItems, err := s.repo.Count(filter)
 	if err != nil {
 		return nil, response.PaginationMeta{}, err
 	}
 
-	books, err := s.repo.FindAll(limit, offset)
+	books, err := s.repo.FindAll(limit, offset, filter)
 	if err != nil {
 		return nil, response.PaginationMeta{}, err
 	}

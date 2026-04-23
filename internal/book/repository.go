@@ -3,6 +3,8 @@ package book
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jmoiron/sqlx"
@@ -16,7 +18,9 @@ func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) FindAll(limit, offset int) ([]Book, error) {
+func (r *Repository) FindAll(limit, offset int, filter BookFilter) ([]Book, error) {
+	filterQuery, args := buildBookFilterQuery(filter)
+
 	query := `
 		SELECT
 			id,
@@ -28,22 +32,27 @@ func (r *Repository) FindAll(limit, offset int) ([]Book, error) {
 			created_at,
 			updated_at
 		FROM books
+		` + filterQuery + `
 		ORDER BY id DESC
-		LIMIT $1 OFFSET $2
-	`
+		LIMIT $` + fmt.Sprint(len(args)+1) + ` OFFSET $` + fmt.Sprint(len(args)+2)
+
+	args = append(args, limit, offset)
 
 	var books []Book
-	if err := r.db.Select(&books, query, limit, offset); err != nil {
+	if err := r.db.Select(&books, query, args...); err != nil {
 		return nil, err
 	}
 
 	return books, nil
 }
 
-func (r *Repository) Count() (int64, error) {
+func (r *Repository) Count(filter BookFilter) (int64, error) {
+	filterQuery, args := buildBookFilterQuery(filter)
+
 	var count int64
-	query := `SELECT COUNT(*) FROM books`
-	if err := r.db.Get(&count, query); err != nil {
+	query := `SELECT COUNT(*) FROM books` + filterQuery
+
+	if err := r.db.Get(&count, query, args...); err != nil {
 		return 0, err
 	}
 
@@ -185,4 +194,61 @@ func (r *Repository) Delete(id int64) error {
 	}
 
 	return nil
+}
+
+// Helper
+func buildBookFilterQuery(filter BookFilter) (string, []any) {
+	conditions := []string{}
+	args := []any{}
+
+	addCondition := func(condition string, values ...any) {
+		placeholders := make([]any, 0, len(values))
+		for _, value := range values {
+			args = append(args, value)
+			placeholders = append(placeholders, fmt.Sprintf("$%d", len(args)))
+		}
+
+		conditions = append(conditions, fmt.Sprintf(condition, placeholders...))
+	}
+
+	addRawCondition := func(condition string, value any) {
+		args = append(args, value)
+		placeholder := fmt.Sprintf("$%d", len(args))
+		conditions = append(conditions, fmt.Sprintf(condition, placeholder))
+	}
+
+	if filter.Search != "" {
+		value := "%" + filter.Search + "%"
+		addCondition("(title ILIKE %s OR author ILIKE %s OR isbn ILIKE %s)", value, value, value)
+	}
+
+	if filter.Title != "" {
+		addRawCondition("title ILIKE %s", "%"+filter.Title+"%")
+	}
+
+	if filter.Author != "" {
+		addRawCondition("author ILIKE %s", "%"+filter.Author+"%")
+	}
+
+	if filter.ISBN != "" {
+		addRawCondition("isbn ILIKE %s", "%"+filter.ISBN+"%")
+	}
+
+	if filter.PublishedYear != nil {
+		addRawCondition("published_year = %s", *filter.PublishedYear)
+	}
+
+	if filter.Available != nil {
+		if *filter.Available {
+			conditions = append(conditions, "stock > 0")
+		} else {
+			conditions = append(conditions, "stock = 0")
+		}
+	}
+
+	if len(conditions) == 0 {
+		return "", args
+	}
+
+	return " WHERE " + strings.Join(conditions, " AND "), args
 }

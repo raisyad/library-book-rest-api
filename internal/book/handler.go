@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"go-library-rest-api/internal/response"
 	"go-library-rest-api/internal/helper"
+	"go-library-rest-api/internal/response"
 	"go-library-rest-api/internal/validation"
 )
 
@@ -23,7 +23,32 @@ func (h *Handler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
-	books, meta, err := h.service.List(page, limit)
+	filter := BookFilter{
+		Search: c.Query("search"),
+		Title:  c.Query("title"),
+		Author: c.Query("author"),
+		ISBN:   c.Query("isbn"),
+	}
+
+	if year := c.Query("published_year"); year != "" {
+		parsedYear, err := strconv.Atoi(year)
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, "invalid published_year", nil)
+			return
+		}
+		filter.PublishedYear = &parsedYear
+	}
+
+	if available := c.Query("available"); available != "" {
+		parsedAvailable, err := strconv.ParseBool(available)
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, "invalid available value", nil)
+			return
+		}
+		filter.Available = &parsedAvailable
+	}
+
+	books, meta, err := h.service.List(page, limit, filter)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to fetch books", nil)
 		return

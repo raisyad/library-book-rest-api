@@ -15,3 +15,12 @@ type UpdateBookRequest struct {
 	PublishedYear *int   `json:"published_year"`
 	Stock         int    `json:"stock" binding:"gte=0"`
 }
+
+type BookFilter struct {
+	Search        string
+	Title         string
+	Author        string
+	ISBN          string
+	PublishedYear *int
+	Available     *bool
+}
