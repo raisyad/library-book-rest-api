@@ -3,6 +3,8 @@ package borrowing
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -24,6 +26,18 @@ const borrowingDetailQuery = `
 		br.due_date,
 		br.returned_at,
 		br.status,
+		(
+			br.status = 'borrowed'
+			AND br.due_date IS NOT NULL
+			AND br.due_date < CURRENT_DATE
+		) AS is_overdue,
+		CASE
+			WHEN br.status = 'borrowed'
+				AND br.due_date IS NOT NULL
+				AND br.due_date < CURRENT_DATE
+			THEN CURRENT_DATE - br.due_date
+			ELSE 0
+		END AS days_overdue,
 		br.created_at,
 		br.updated_at,
 		m.name AS member_name,
@@ -35,24 +49,30 @@ const borrowingDetailQuery = `
 	JOIN books b ON b.id = br.book_id
 `
 
-func (r *Repository) FindAll(limit, offset int) ([]Borrowing, error) {
-	query := borrowingDetailQuery + `
+func (r *Repository) FindAll(limit, offset int, filter BorrowingFilter) ([]Borrowing, error) {
+	filterQuery, args := buildBorrowingFilterQuery(filter)
+
+	query := borrowingDetailQuery + filterQuery + fmt.Sprintf(`
 		ORDER BY br.id DESC
-		LIMIT $1 OFFSET $2
-	`
+		LIMIT $%d OFFSET $%d
+	`, len(args)+1, len(args)+2)
+
+	args = append(args, limit, offset)
 
 	var borrowings []Borrowing
-	if err := r.db.Select(&borrowings, query, limit, offset); err != nil {
+	if err := r.db.Select(&borrowings, query, args...); err != nil {
 		return nil, err
 	}
 
 	return borrowings, nil
 }
 
-func (r *Repository) Count() (int64, error) {
+func (r *Repository) Count(filter BorrowingFilter) (int64, error) {
+	filterQuery, args := buildBorrowingFilterQuery(filter)
+
 	var count int64
-	query := `SELECT COUNT(*) FROM borrowings`
-	if err := r.db.Get(&count, query); err != nil {
+	query := `SELECT COUNT(*) FROM borrowings br` + filterQuery
+	if err := r.db.Get(&count, query, args...); err != nil {
 		return 0, err
 	}
 
@@ -267,4 +287,46 @@ func (r *Repository) findByIDTx(tx *sqlx.Tx, id int64) (*Borrowing, error) {
 	}
 
 	return &borrowing, nil
+}
+
+func buildBorrowingFilterQuery(filter BorrowingFilter) (string, []any) {
+	conditions := []string{}
+	args := []any{}
+
+	addCondition := func(condition string, value any) {
+		args = append(args, value)
+		placeholder := fmt.Sprintf("$%d", len(args))
+		conditions = append(conditions, fmt.Sprintf(condition, placeholder))
+	}
+
+	if filter.Status != "" {
+		addCondition("br.status = %s", filter.Status)
+	}
+
+	if filter.Overdue != nil {
+		overdueCondition := `
+			br.status = 'borrowed'
+			AND br.due_date IS NOT NULL
+			AND br.due_date < CURRENT_DATE
+		`
+		if *filter.Overdue {
+			conditions = append(conditions, overdueCondition)
+		} else {
+			conditions = append(conditions, "NOT ("+overdueCondition+")")
+		}
+	}
+
+	if filter.MemberID != nil {
+		addCondition("br.member_id = %s", *filter.MemberID)
+	}
+
+	if filter.BookID != nil {
+		addCondition("br.book_id = %s", *filter.BookID)
+	}
+
+	if len(conditions) == 0 {
+		return "", args
+	}
+
+	return " WHERE " + strings.Join(conditions, " AND "), args
 }

@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"go-library-rest-api/internal/response"
 	"go-library-rest-api/internal/helper"
+	"go-library-rest-api/internal/response"
 	"go-library-rest-api/internal/validation"
 )
 
@@ -23,7 +23,43 @@ func (h *Handler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
-	borrowings, meta, err := h.service.List(page, limit)
+	filter := BorrowingFilter{
+		Status: c.Query("status"),
+	}
+
+	if filter.Status != "" && filter.Status != "borrowed" && filter.Status != "returned" {
+		response.Error(c, http.StatusBadRequest, "invalid status", nil)
+		return
+	}
+
+	if overdue := c.Query("overdue"); overdue != "" {
+		parsedOverdue, err := strconv.ParseBool(overdue)
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, "invalid overdue value", nil)
+			return
+		}
+		filter.Overdue = &parsedOverdue
+	}
+
+	if memberID := c.Query("member_id"); memberID != "" {
+		parsedMemberID, err := strconv.ParseInt(memberID, 10, 64)
+		if err != nil || parsedMemberID <= 0 {
+			response.Error(c, http.StatusBadRequest, "invalid member_id", nil)
+			return
+		}
+		filter.MemberID = &parsedMemberID
+	}
+
+	if bookID := c.Query("book_id"); bookID != "" {
+		parsedBookID, err := strconv.ParseInt(bookID, 10, 64)
+		if err != nil || parsedBookID <= 0 {
+			response.Error(c, http.StatusBadRequest, "invalid book_id", nil)
+			return
+		}
+		filter.BookID = &parsedBookID
+	}
+
+	borrowings, meta, err := h.service.List(page, limit, filter)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to fetch borrowings", nil)
 		return
